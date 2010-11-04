@@ -5,6 +5,8 @@
 #include <assert.h>
 #include <exception>
 #include <iostream>
+#include <fstream>
+#include <stdio.h>
 
 #ifdef _WIN32
 #include <malloc.h>
@@ -64,7 +66,7 @@ public:
 
 	bool showAllAllocs;
 	bool showAllDeallocs;
-	bool autoFreeLeaksAtExit;
+	bool dumpLeaksToFile;
 	
 	static MemoryManager& Get();
 	

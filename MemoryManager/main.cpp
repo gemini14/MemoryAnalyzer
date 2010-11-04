@@ -6,8 +6,6 @@ MemoryManager *mmgr = &MemoryManager::Get();
 
 #include <iostream>
 //#include <vld.h>
-//#include <tbb/tick_count.h>
-#include <memory>
 #include <vector>
 
 class Complex
@@ -26,13 +24,10 @@ using namespace std;
 
 int main(int argc, char* argv[])
 {
-	mmgr->showAllAllocs = true;
-	mmgr->showAllDeallocs = true;
-	
-	//int *i = new int[5];
-	//i[0] = 5;
-	//cout << mmgr->GetCurrentMemory() << " " << mmgr->GetPeakMemory() << endl;
-	//delete[] i;
+	mmgr->dumpLeaksToFile = true;
+
+	int *i = new int[5];
+	delete[] i;
 
 	/*int *j = new int[5];
 	j[0] = 4;
@@ -53,15 +48,15 @@ int main(int argc, char* argv[])
 	/*cout << mmgr->GetCurrentMemory() << " " << mmgr->GetPeakMemory() << endl;
 	
 	cout << mmgr->GetCurrentMemory() << " " << mmgr->GetPeakMemory() << endl;*/
-	std::shared_ptr<Complex> test(new Complex(2, 4));
-	cout << mmgr->GetCurrentMemory() << " " << mmgr->GetPeakMemory() << endl;
-	mmgr->DisplayAllocations(true, true);
 	
-	
-	/*vector<shared_ptr<Complex>> *testVec = new vector<shared_ptr<Complex>>;
+	vector<shared_ptr<Complex>> *testVec = new vector<shared_ptr<Complex>>;
 	testVec->reserve(3);
 	testVec->push_back(shared_ptr<Complex>(new Complex(5, 8)));
 	testVec->push_back(shared_ptr<Complex>(new Complex(1, 499)));
-	delete testVec;*/
+	
+	
+	std::shared_ptr<Complex> test(new Complex(2, 4));
+
+	delete testVec;
 	return 0;
 }

@@ -30,4 +30,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="memleaks.log">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
 </Project>
