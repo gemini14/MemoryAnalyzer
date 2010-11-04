@@ -46,8 +46,8 @@ private:
 	MemInfoNode *head_new;
 	MemInfoNode *head_new_array;
 
-	int currentMemory;
-	int peakMemory;
+	size_t currentMemory;
+	size_t peakMemory;
 
 	const char *filenameUnavail;
 
@@ -64,6 +64,7 @@ public:
 
 	bool showAllAllocs;
 	bool showAllDeallocs;
+	bool autoFreeLeaksAtExit;
 	
 	static MemoryManager& Get();
 	
@@ -71,8 +72,8 @@ public:
 	void Deallocate(void *ptr, AllocationType type, bool throwEx = false);
 
 	void DisplayAllocations(bool sortBySize = true, bool displayList = false);
-	int GetCurrentMemory();
-	int GetPeakMemory();
+	size_t GetCurrentMemory();
+	size_t GetPeakMemory();
 
 #ifdef _WIN32
 	void HeapCheck();

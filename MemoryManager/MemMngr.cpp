@@ -6,7 +6,7 @@ using namespace std;
 
 MemoryManager::MemoryManager() 
 	: head_new(nullptr), head_new_array(nullptr), showAllAllocs(false), showAllDeallocs(false),
-	peakMemory(0), currentMemory(0), filenameUnavail("Filename unavailable")
+	peakMemory(0), currentMemory(0), filenameUnavail("Filename unavailable"), autoFreeLeaksAtExit(true)
 {
 }
 
@@ -28,6 +28,10 @@ MemoryManager::~MemoryManager()
 						<< " Line: " << addrNode->line;
 					temp = addrNode;
 					addrNode = addrNode->next;
+					if(autoFreeLeaksAtExit)
+					{
+						free(temp->address);
+					}
 					free(temp);
 				}
 				cout << "\n\n";
@@ -236,12 +240,12 @@ void MemoryManager::DisplayAllocations(bool sortBySize, bool displayList)
 		<< " non-array, " << totalAllocsNewArray << " array)\n\n";
 }
 
-int MemoryManager::GetCurrentMemory()
+size_t MemoryManager::GetCurrentMemory()
 {
 	return currentMemory;
 }
 
-int MemoryManager::GetPeakMemory()
+size_t MemoryManager::GetPeakMemory()
 {
 	return peakMemory;
 }
