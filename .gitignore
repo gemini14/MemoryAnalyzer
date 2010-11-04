@@ -11,6 +11,8 @@
 *.pch
 *.vspscc
 *.vssscc
+*.vcxproj
+*.sln
 *_i.c
 *_p.c
 *.ncb
