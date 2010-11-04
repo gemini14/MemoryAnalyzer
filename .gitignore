@@ -28,3 +28,7 @@ ipch/
 obj/[Bb]in
 [Dd]ebug*/
 [Rr]elease*/
+
+#Proj specific
+main.cpp
+memleaks.log
