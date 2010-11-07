@@ -6,6 +6,10 @@
 #define MEMMNGR_H
 
 
+#ifndef MEMORYANALYZER_H
+#error Do not include this file directly.  Please include MemoryAnalyzer.h instead.
+#endif
+
 #include <assert.h>
 #include <exception>
 #include <iostream>
@@ -89,6 +93,8 @@ private:
 
 	MemoryManager();
 	~MemoryManager();
+	MemoryManager(const MemoryManager&);
+	MemoryManager& operator=(const MemoryManager&);
 
 	/**	@brief Adds information for a single allocation to the internal list
 		@param size Size of the allocation requested by the program
@@ -99,7 +105,7 @@ private:
 	*/
 	void AddAllocationToList(size_t size, AllocationType type, void *ptr, const char *file, int line);
 
-	/** @brief Allocates memory upon request from the overloaded new operator (should not be called directly by user)
+	/** @brief Allocates memory upon request from the overloaded new operator
 		@param size Requested allocation size
 		@param type Allocation type
 		@param file Source filename from which the allocation was requested
@@ -109,7 +115,7 @@ private:
 	*/
 	void* Allocate(size_t size, AllocationType type, const char *file, int line, bool throwEx = false);
 	
-	/** @brief Frees memory upon request from the overloaded delete operator (should not be called directly by user)
+	/** @brief Frees memory upon request from the overloaded delete operator
 		@param ptr Pointer to memory which should be freed
 		@param type Allocation type
 		@param throwEx Indicates whether or not an exception should be thrown if memory couldn't be allocated (default: false)

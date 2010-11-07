@@ -14,7 +14,8 @@
 	
 	Note that since it was written with portability in mind, it does not have all the features of memory tools written
 	specifically for your platform.  It is also not intended to replace the more sophisticated tools out there (such as
-	Valgrind), but to serve as an easy-to-use memory tool which you can bring with you across platforms.
+	Valgrind), but to serve as an easy-to-use, portable tool which you can use to check for leaks and get an overview
+	of your program's memory-related behavior.
 
 	@section inst Installation
 
