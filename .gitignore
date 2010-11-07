@@ -11,7 +11,8 @@
 *.pch
 *.vspscc
 *.vssscc
-*.vcxproj
+*.vcxproj.*
+*.vxcproj
 *.sln
 *_i.c
 *_p.c
