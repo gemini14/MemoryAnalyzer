@@ -1,12 +1,19 @@
 #include "MemMngr.h"
 
+#include <assert.h>
+#include <exception>
+#include <iostream>
+
+#ifdef _WIN32
+#include <malloc.h>
+#endif
 
 using namespace std;
 
 
 MemoryManager::MemoryManager() 
 	: head_new(nullptr), head_new_array(nullptr), showAllAllocs(false), showAllDeallocs(false),
-	peakMemory(0), currentMemory(0), filenameUnavail("Filename unavailable"), dumpLeaksToFile(false)
+	peakMemory(0), currentMemory(0), unknown("Unknown"), dumpLeaksToFile(false)
 {
 }
 
@@ -76,7 +83,7 @@ MemoryManager::~MemoryManager()
 	cin.get();
 }
 
-void MemoryManager::AddAllocationToList(size_t size, AllocationType type, void *ptr, const char *file, int line)
+void MemoryManager::AddAllocationToList(size_t size, AllocationType type, void *ptr)
 {
 	MemInfoNode *head = GetListHead(type);
 	auto current = head;
@@ -86,26 +93,20 @@ void MemoryManager::AddAllocationToList(size_t size, AllocationType type, void *
 		current = current->next;
 	}
 
-	auto addAddress = [=](void *newAddr, MemInfoNode **curMemNode)
+	auto addAddress = [&](void *newAddr, MemInfoNode **curMemNode)
 	{
 		AddrListNode *newAddrNode = static_cast<AddrListNode*>(malloc(sizeof(AddrListNode)));
 		// set the "next" pointer to the address the MemInfoNode is currently pointing to
 		newAddrNode->next = (*curMemNode)->addresses;
 		newAddrNode->address = newAddr;
-
+		newAddrNode->type = "\0";
 		// if the filename is empty, it means it wasn't available
-		if(strlen(file) == 0)
-		{
-			newAddrNode->file = filenameUnavail;
-			newAddrNode->line = 0;
-		}
-		else
-		{
-			newAddrNode->file = file;
-			newAddrNode->line = line;
-		}
+		newAddrNode->file = unknown;
+		newAddrNode->line = 0;
+		
 		// push the new node in the front of the address list of the mem node (ie, push_front)
 		(*curMemNode)->addresses = newAddrNode;
+		mostRecentAllocAddrNode = newAddrNode;
 	};
 
 	// if we found a mem node with the correct size, just stick a new address node onto the list
@@ -187,6 +188,42 @@ void MemoryManager::RemoveAllocationFromList(void *ptr, AllocationType type)
 	current->numberOfAllocations--;
 }
 
+MemoryManager::AddrListNode* MemoryManager::RetrieveAddrNode(void *ptr)
+{
+	AddrListNode *temp_addr = nullptr;
+	auto addressFind = [&](MemInfoNode *head) -> bool
+	{
+		MemInfoNode *temp_mem = head;
+		while(temp_mem)
+		{
+			temp_addr = temp_mem->addresses;
+			// move down the address list until it's null or the address matches
+			while(temp_addr && temp_addr->address != ptr)
+			{
+				temp_addr = temp_addr->next;
+			}
+			// if it stopped on a non-null addr node and it matches the address, return it
+			if(temp_addr && temp_addr->address == ptr)
+			{
+				return true;
+			}
+			// otherwise, move to the next size
+			temp_mem = temp_mem->next;
+		}
+		return false;
+	};
+
+	if(addressFind(head_new))
+	{
+		return temp_addr;
+	}
+	else if(addressFind(head_new_array))
+	{
+		return temp_addr;
+	}
+	return nullptr;
+}
+
 const char* MemoryManager::GetAllocTypeAsString(AllocationType type)
 {
 	return type == ALLOC_NEW ? "non-array" : "array";
@@ -203,7 +240,28 @@ MemoryManager& MemoryManager::Get()
 	return mmgr;
 }
 
-void* MemoryManager::Allocate(size_t size, AllocationType type, const char *file, int line, bool throwEx)
+void MemoryManager::AddAllocationDetails(void *ptr, const char *file, int line, const char *type)
+{
+	if(!ptr)
+		return;
+
+	if(mostRecentAllocAddrNode->address != ptr)
+	{
+		mostRecentAllocAddrNode = RetrieveAddrNode(ptr);
+		// if it returns null, it couldn't be found in the stored lists, possibly indicating some problem
+		// during allocation/construction
+		if(!mostRecentAllocAddrNode)
+		{
+			return;
+		}
+	}
+
+	mostRecentAllocAddrNode->file = file;
+	mostRecentAllocAddrNode->line = line;
+	mostRecentAllocAddrNode->type = type;
+}
+
+void* MemoryManager::Allocate(size_t size, AllocationType type, bool throwEx)
 {
 	// cast necessary since this is C++ (note the additional bytes for the header)
 	unsigned char *ptr = static_cast<unsigned char*>(malloc(size + sizeof(AllocationHeader)));
@@ -228,7 +286,7 @@ void* MemoryManager::Allocate(size_t size, AllocationType type, const char *file
 
 	// only store the address of the memory we give to the user, not the (header + the mem) address, since they will 
 	// release it with that address
-	AddAllocationToList(size, type, ptr + sizeof(AllocationHeader), file, line);
+	AddAllocationToList(size, type, ptr + sizeof(AllocationHeader));
 
 	// update stats
 	currentMemory += size;
@@ -239,8 +297,7 @@ void* MemoryManager::Allocate(size_t size, AllocationType type, const char *file
 
 	if(showAllAllocs)
 	{
-		cout << "Allocation >\n\tSize: " <<  size << "\n\tType: " << GetAllocTypeAsString(type) 
-			<< "\n\tFile: " << ((strlen(file) > 0) ? file : filenameUnavail) << "\n\tLine: " << line << "\n\n";
+		cout << "Allocation >\n\tSize: " <<  size << "\n\tAlloc Type: " << GetAllocTypeAsString(type) << "\n\n";
 	}
 	return ptr + sizeof(AllocationHeader);
 }
@@ -254,7 +311,7 @@ void MemoryManager::Deallocate(void *ptr, AllocationType type, bool throwEx)
 		AllocationHeader *header = reinterpret_cast<AllocationHeader*>(rawPtr - sizeof(AllocationHeader));
 		if(showAllDeallocs)
 		{
-			cout << "Deallocation >\n\tSize: " <<  header->rawSize << "\n\tType: " 
+			cout << "Deallocation >\n\tSize: " <<  header->rawSize << "\n\tAlloc Type: " 
 				<< GetAllocTypeAsString(header->type);
 		}
 		RemoveAllocationFromList(ptr, type);
@@ -342,19 +399,13 @@ void MemoryManager::HeapCheck()
 // exception version
 void* operator new(size_t size)
 {
-	return MemoryManager::Get().Allocate(size, ALLOC_NEW, "\0", 0, true);
+	return MemoryManager::Get().Allocate(size, ALLOC_NEW, true);
 }
 
 // non-exception version
 void* operator new(size_t size, const std::nothrow_t&)
 {
-	return MemoryManager::Get().Allocate(size, ALLOC_NEW, "\0", 0);
-}
-
-// default version (non-exception)
-void* operator new(size_t size, const char *file, int line)
-{
-	return MemoryManager::Get().Allocate(size, ALLOC_NEW, file, line);
+	return MemoryManager::Get().Allocate(size, ALLOC_NEW);
 }
 
 // exception version
@@ -375,19 +426,13 @@ void operator delete(void *ptr, const std::nothrow_t&)
 // exception version
 void* operator new[](size_t size)
 {
-	return MemoryManager::Get().Allocate(size, ALLOC_NEW_ARRAY, "\0", 0, true);
+	return MemoryManager::Get().Allocate(size, ALLOC_NEW_ARRAY, true);
 }
 
 // non-exception version
 void* operator new[](size_t size, const std::nothrow_t&)
 {
-	return MemoryManager::Get().Allocate(size, ALLOC_NEW_ARRAY, "\0", 0);
-}
-
-// default version (non-exception)
-void* operator new[](size_t size, const char *file, int line)
-{
-	return MemoryManager::Get().Allocate(size, ALLOC_NEW_ARRAY, file, line);
+	return MemoryManager::Get().Allocate(size, ALLOC_NEW_ARRAY);
 }
 
 // exception version
