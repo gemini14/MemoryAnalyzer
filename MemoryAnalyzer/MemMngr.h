@@ -130,8 +130,10 @@ private:
 	@param file Source filename from which the allocation was requested
 	@param line Line number of the source file on which the allocation request occurred
 	@param type Type of the allocation (i.e., int, Complex, Vector, etc.) determined using RTTI
+	@param objectSize Size of the object; used to decrease lookup times if the node matching the ptr address is not the same
+	as the one in mostRecentAllocAddrNode
 	*/
-	void AddAllocationDetails(void *ptr, const char *file, int line, const char *type);
+	void AddAllocationDetails(void *ptr, const char *file, int line, const char *type, size_t objectSize);
 
 	/** @brief Allocates memory upon request from the overloaded new operator
 	@param size Requested allocation size
@@ -168,11 +170,12 @@ private:
 	*/
 	void RemoveAllocationFromList(void *ptr, AllocationType type);
 
-	/** @brief Finds the information node associated with the address
+	/** @brief Finds the information node associated with the address.
 		@param ptr Address of the desired node
+		@param objectSize Size of the object pointed to by ptr.  If the size is not known, this parameter can be ignored.
 		@return Pointer to the AddrListNode containing information about the allocation
 	*/
-	AddrListNode* RetrieveAddrNode(void *ptr);
+	AddrListNode* RetrieveAddrNode(void *ptr, size_t objectSize = -1);
 
 public:
 
@@ -241,7 +244,7 @@ T* operator*(const SourcePacket& packet, T* p)
 	if(p)
 	{
 		const char *type = typeid(*p).name();
-		MemoryManager::Get().AddAllocationDetails(p, packet.file, packet.line, type);
+		MemoryManager::Get().AddAllocationDetails(p, packet.file, packet.line, type, sizeof(*p));
 		if(MemoryManager::Get().showAllAllocs)
 		{
 			cout << "\tObject Type: " << type << "\n\tFile: " << packet.file << "\n\tLine: " << packet.line << "\n\n";

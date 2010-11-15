@@ -82,8 +82,8 @@ MemoryManager::~MemoryManager()
 	if(dumpLeaksToFile)
 	{
 		dumpFile << "Total number of leaks found: " << totalLeaks << "\nTotal memory leaked: " << currentMemory 
-		<< " bytes (" << currentMemory / 1000. << " kilobytes / " << currentMemory / 1000000. << " megabytes)" 
-		<< "\n\nPress any key twice to continue";
+			<< " bytes (" << currentMemory / 1000. << " kilobytes / " << currentMemory / 1000000. << " megabytes)" 
+			<< "\n\nPress any key twice to continue";
 	}
 	cin.get();
 	cin.get();
@@ -110,7 +110,7 @@ void MemoryManager::AddAllocationToList(size_t size, AllocationType type, void *
 		newAddrNode->type = unknown;
 		newAddrNode->file = unknown;
 		newAddrNode->line = 0;
-		
+
 		// push the new node in the front of the address list of the mem node (ie, push_front)
 		(*curMemNode)->addresses = newAddrNode;
 		mostRecentAllocAddrNode = newAddrNode;
@@ -196,27 +196,48 @@ void MemoryManager::RemoveAllocationFromList(void *ptr, AllocationType type)
 	current->numberOfAllocations--;
 }
 
-MemoryManager::AddrListNode* MemoryManager::RetrieveAddrNode(void *ptr)
+MemoryManager::AddrListNode* MemoryManager::RetrieveAddrNode(void *ptr, size_t objectSize)
 {
 	AddrListNode *temp_addr = nullptr;
 	auto addressFind = [&](MemInfoNode *head) -> bool
 	{
 		MemInfoNode *temp_mem = head;
-		while(temp_mem)
+		// if we don't know the size, just iterate through the lists
+		if(objectSize == -1)
 		{
-			temp_addr = temp_mem->addresses;
-			// move down the address list until it's null or the address matches
-			while(temp_addr && temp_addr->address != ptr)
+			while(temp_mem)
 			{
-				temp_addr = temp_addr->next;
+				temp_addr = temp_mem->addresses;
+				// move down the address list until it's null or the address matches
+				while(temp_addr && temp_addr->address != ptr)
+				{
+					temp_addr = temp_addr->next;
+				}
+				// if it stopped on a non-null addr node and it matches the address, return it
+				if(temp_addr && temp_addr->address == ptr)
+				{
+					return true;
+				}
+				// otherwise, move to the next size
+				temp_mem = temp_mem->next;
 			}
-			// if it stopped on a non-null addr node and it matches the address, return it
-			if(temp_addr && temp_addr->address == ptr)
+		}
+		// but if we do know the size, skip through the memory nodes for the lists until we find the correct size
+		else
+		{
+			for( ; temp_mem && temp_mem->size != objectSize; temp_mem = temp_mem->next);
+			if(temp_mem)
 			{
-				return true;
+				temp_addr = temp_mem->addresses;
+				while(temp_addr && temp_addr->address != ptr)
+				{
+					temp_addr = temp_addr->next;
+				}
+				if(temp_addr && temp_addr->address == ptr)
+				{
+					return true;
+				}
 			}
-			// otherwise, move to the next size
-			temp_mem = temp_mem->next;
 		}
 		return false;
 	};
@@ -248,14 +269,14 @@ MemoryManager& MemoryManager::Get()
 	return mmgr;
 }
 
-void MemoryManager::AddAllocationDetails(void *ptr, const char *file, int line, const char *type)
+void MemoryManager::AddAllocationDetails(void *ptr, const char *file, int line, const char *type, size_t objectSize)
 {
 	if(!ptr)
 		return;
 
 	if(mostRecentAllocAddrNode->address != ptr)
 	{
-		mostRecentAllocAddrNode = RetrieveAddrNode(ptr);
+		mostRecentAllocAddrNode = RetrieveAddrNode(ptr, objectSize);
 		// if it returns null, it couldn't be found in the stored lists, possibly indicating some problem
 		// during allocation/construction
 		if(!mostRecentAllocAddrNode)
