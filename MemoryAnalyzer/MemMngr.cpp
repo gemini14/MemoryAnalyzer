@@ -23,11 +23,6 @@ MemoryManager::~MemoryManager()
 
 	auto cleanupLeakCheck = [&](MemInfoNode *head, AllocationType type)
 	{
-		if(dumpLeaksToFile)
-		{
-			dumpFile.open("memleaks.log", ios::app);
-		}
-
 		// step through the list of nodes (which contain info on allocs of a single size) and check if
 		// there are any allocations left
 		for(MemInfoNode *temp; head; head = temp)
@@ -73,13 +68,24 @@ MemoryManager::~MemoryManager()
 	};
 	// this is here to basically clear the file contents
 	remove( "memleaks.log" );
+	if(dumpLeaksToFile)
+	{
+		dumpFile.open("memleaks.log", ios::app);
+	}
 
 	cleanupLeakCheck(head_new, ALLOC_NEW);
 	cleanupLeakCheck(head_new_array, ALLOC_NEW_ARRAY);
 
 	cout << "Total number of leaks found: " << totalLeaks << "\nTotal memory leaked: " << currentMemory 
 		<< " bytes (" << currentMemory / 1000. << " kilobytes / " << currentMemory / 1000000. << " megabytes)" 
-		<< "\n\nPress any key to continue";
+		<< "\n\nPress any key twice to continue";
+	if(dumpLeaksToFile)
+	{
+		dumpFile << "Total number of leaks found: " << totalLeaks << "\nTotal memory leaked: " << currentMemory 
+		<< " bytes (" << currentMemory / 1000. << " kilobytes / " << currentMemory / 1000000. << " megabytes)" 
+		<< "\n\nPress any key twice to continue";
+	}
+	cin.get();
 	cin.get();
 }
 
@@ -99,8 +105,9 @@ void MemoryManager::AddAllocationToList(size_t size, AllocationType type, void *
 		// set the "next" pointer to the address the MemInfoNode is currently pointing to
 		newAddrNode->next = (*curMemNode)->addresses;
 		newAddrNode->address = newAddr;
-		newAddrNode->type = "\0";
-		// if the filename is empty, it means it wasn't available
+		// object type, file, and line # start out as unknown or 0; the information, if available, will be added
+		// through the use of the SourcePacket mechanism after the entire allocation is complete
+		newAddrNode->type = unknown;
 		newAddrNode->file = unknown;
 		newAddrNode->line = 0;
 		
@@ -182,7 +189,8 @@ void MemoryManager::RemoveAllocationFromList(void *ptr, AllocationType type)
 
 	if(showAllDeallocs)
 	{
-		cout << "\n\tFile: " << addressNode->file << "\n\tLine: " << addressNode->line << "\n\n";
+		cout << "\n\tObject Type: " << addressNode->type << "\n\tFile: " << addressNode->file 
+			<< "\n\tLine: " << addressNode->line << "\n\n";
 	}
 	free(addressNode);
 	current->numberOfAllocations--;

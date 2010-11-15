@@ -22,6 +22,30 @@ enum AllocationType
 	ALLOC_NEW_ARRAY		/**< Array memory allocation */
 };
 
+
+class SourcePacket
+{
+private:
+
+	SourcePacket(const SourcePacket&);
+	SourcePacket& operator=(const SourcePacket&);
+
+public:
+
+	SourcePacket(const char *file, int line) : file(file), line(line)
+	{}
+	~SourcePacket()
+	{}
+
+	const char *file;
+	int line;
+};
+
+
+template<typename T>
+T* operator*(const SourcePacket& packet, T* p);
+
+
 /** @class MemoryManager
 @brief Internal implementation of the MemoryAnalyzer tool.
 
@@ -101,6 +125,14 @@ private:
 	*/
 	void AddAllocationToList(size_t size, AllocationType type, void *ptr);
 
+	/** @brief Adds context information to the most recent allocation
+	@param ptr Pointer to the allocated memory
+	@param file Source filename from which the allocation was requested
+	@param line Line number of the source file on which the allocation request occurred
+	@param type Type of the allocation (i.e., int, Complex, Vector, etc.) determined using RTTI
+	*/
+	void AddAllocationDetails(void *ptr, const char *file, int line, const char *type);
+
 	/** @brief Allocates memory upon request from the overloaded new operator
 	@param size Requested allocation size
 	@param type Allocation type
@@ -161,15 +193,7 @@ public:
 	*/
 	static MemoryManager& Get();
 
-	/** @brief Adds context information to the most recent allocation
-	@param ptr Pointer to the allocated memory
-	@param file Source filename from which the allocation was requested
-	@param line Line number of the source file on which the allocation request occurred
-	@param type Type of the allocation (i.e., int, Complex, Vector, etc.) determined using RTTI
-	*/
-	void AddAllocationDetails(void *ptr, const char *file, int line, const char *type);
-
-	/** @brief Displays current memory allocations in the console according to criteria
+		/** @brief Displays current memory allocations in the console according to criteria
 	@param displayNumberOfAllocsFirst Set to true to display the list according to the number of allocations
 	of a certain size (i.e., 10 allocs of size 2); otherwise, the list will be displayed according to
 	the size of the allocations, followed by the number of allocations of that size (i.e., Size: 2, 10 allocs).
@@ -205,36 +229,20 @@ public:
 	friend void* operator new[](size_t size, const std::nothrow_t&);
 	friend void operator delete[](void *ptr);
 	friend void operator delete[](void *ptr, const std::nothrow_t&);
-};
-
-
-class SourcePacket
-{
-private:
-
-	SourcePacket(const SourcePacket&);
-	SourcePacket& operator=(const SourcePacket&);
-
-public:
-
-	SourcePacket(const char *file, int line) : file(file), line(line)
-	{}
-	~SourcePacket()
-	{}
-
-	const char *file;
-	int line;
+	
+	template<typename T>
+	friend T* operator*(const SourcePacket& packet, T* p);
 };
 
 
 template<typename T>
-inline T* operator*(const SourcePacket& packet, T* p)
+T* operator*(const SourcePacket& packet, T* p)
 {
 	if(p)
 	{
 		const char *type = typeid(*p).name();
 		MemoryManager::Get().AddAllocationDetails(p, packet.file, packet.line, type);
-		if(MemoryManager::Get().showAllDeallocs)
+		if(MemoryManager::Get().showAllAllocs)
 		{
 			cout << "\tObject Type: " << type << "\n\tFile: " << packet.file << "\n\tLine: " << packet.line << "\n\n";
 		}
