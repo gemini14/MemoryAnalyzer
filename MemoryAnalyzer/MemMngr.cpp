@@ -13,7 +13,8 @@ using namespace std;
 
 MemoryManager::MemoryManager() 
 	: head_new(nullptr), head_new_array(nullptr), showAllAllocs(false), showAllDeallocs(false),
-	peakMemory(0), currentMemory(0), unknown("Unknown"), dumpLeaksToFile(false), currentBlocks(0), peakBlocks(0)
+	peakMemory(0), currentMemory(0), unknown("Unknown"), dumpLeaksToFile(false), currentBlocks(0), 
+	peakBlocks(0), head_types(nullptr)
 {
 }
 
@@ -258,6 +259,11 @@ const char* MemoryManager::GetAllocTypeAsString(AllocationType type)
 	return type == ALLOC_NEW ? "non-array" : "array";
 }
 
+MemoryManager::TypeNode* MemoryManager::GetTypeHead()
+{
+	return head_types;
+}
+
 MemoryManager::MemInfoNode* MemoryManager::GetListHead(AllocationType type)
 {
 	return type == ALLOC_NEW ? head_new : head_new_array;
@@ -288,6 +294,12 @@ void MemoryManager::AddAllocationDetails(void *ptr, const char *file, int line, 
 	mostRecentAllocAddrNode->file = file;
 	mostRecentAllocAddrNode->line = line;
 	mostRecentAllocAddrNode->type = type;
+}
+
+void MemoryManager::AddTypeNode(TypeNode *newType)
+{
+	newType->next = head_types;
+	head_types = newType;
 }
 
 void* MemoryManager::Allocate(size_t size, AllocationType type, bool throwEx)
@@ -395,6 +407,11 @@ void MemoryManager::DisplayAllocations(bool displayNumberOfAllocsFirst, bool dis
 	DisplayAllocs(head_new_array, ALLOC_NEW_ARRAY, totalAllocsNewArray);
 	cout << "Total allocations: " << totalAllocsNew + totalAllocsNewArray << " (" << totalAllocsNew 
 		<< " non-array, " << totalAllocsNewArray << " array)\n\n";
+}
+
+void MemoryManager::DisplayStatTable()
+{
+	
 }
 
 long long MemoryManager::GetCurrentBlocks()

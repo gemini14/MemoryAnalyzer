@@ -11,6 +11,7 @@
 //#endif
 
 #include <fstream>
+#include <stdlib.h>
 #include <typeinfo>
 
 /** @enum AllocationType
@@ -97,14 +98,28 @@ private:
 		MemInfoNode *next;
 	};
 
+	/** @struct TypeNode
+	Internal information container. Used for memory summary purposes. Only tracks allocations which are caught and detailed
+	by the memory manager.
+	*/
+	struct TypeNode
+	{
+		const char *type;
+		long blocks;
+		size_t memSize;
+		TypeNode *next;
+	};
+
 	//! Linked list of normal allocations & information
 	MemInfoNode *head_new;
 	//! Linked list of array allocations & information
 	MemInfoNode *head_new_array;
+	//! Linked list of types (types, blocks, total size in memory)
+	TypeNode *head_types;
 	//! Pointer to last allocated block of memory.  The detailing function checks this variable first to save time.  If it
 	//! the correct node, it will use it; otherwise, it will search for the node using RetrieveAddrNode.
 	AddrListNode *mostRecentAllocAddrNode;
-
+	
 	size_t currentMemory;
 	size_t peakMemory;
 	long long currentBlocks;
@@ -138,6 +153,11 @@ private:
 	*/
 	void AddAllocationDetails(void *ptr, const char *file, int line, const char *type, size_t objectSize);
 
+	/** @brief Adds a new TypeNode to the head of the list
+		@param newType Pointer to a new TypeNode which should be inserted at the head of the list
+	*/
+	void AddTypeNode(TypeNode *newType);
+
 	/** @brief Allocates memory upon request from the overloaded new operator
 	@param size Requested allocation size
 	@param type Allocation type
@@ -166,6 +186,11 @@ private:
 	@return Pointer to head of allocation info list for desired type
 	*/
 	MemInfoNode* GetListHead(AllocationType type);
+
+	/** @brief Accessor function to acquire head node of type information list
+		@return Pointer to head of type information linked list
+	*/
+	TypeNode* GetTypeHead();
 
 	/**	@brief Removes information for a single allocation from the internal list
 	@param ptr Pointer to the freed memory which needs to be deleted from the internal list
@@ -199,7 +224,7 @@ public:
 	*/
 	static MemoryManager& Get();
 
-		/** @brief Displays current memory allocations in the console according to criteria
+	/** @brief Displays current memory allocations in the console according to criteria
 	@param displayNumberOfAllocsFirst Set to true to display the list according to the number of allocations
 	of a certain size (i.e., 10 allocs of size 2); otherwise, the list will be displayed according to
 	the size of the allocations, followed by the number of allocations of that size (i.e., Size: 2, 10 allocs).
@@ -208,6 +233,12 @@ public:
 	Warning: Depending on program size/number of allocations, this may create a lot of messages. (default: false)
 	*/
 	void DisplayAllocations(bool displayNumberOfAllocsFirst = true, bool displayDetail = false);
+
+	/** @brief Displays table with allocated object types, the number of times each type appears (i.e., # of blocks), and the
+	percentage of total memory each collection of type <T> objects takes up.  Objects of unknown types are grouped by size
+	and are indicated like so: Unknown type (size: 16 bytes).
+	*/
+	void DisplayStatTable();
 
 	/** @brief Retrieves the number of blocks allocated at present
 		@return Number of allocated blocks
@@ -261,6 +292,27 @@ T* operator*(const SourcePacket& packet, T* p)
 		if(MemoryManager::Get().showAllAllocs)
 		{
 			cout << "\tObject Type: " << type << "\n\tFile: " << packet.file << "\n\tLine: " << packet.line << "\n\n";
+		}
+		
+		MemoryManager::TypeNode *temp_type = MemoryManager::Get().GetTypeHead();
+		// here the intent is that if it's not null and the type strings are not equal, keep searching
+		// note strcmp will return 0 if they are equal, so upon finding a match, the condition will fail and break the loop
+		while(temp_type && strcmp(temp_type->type, type))
+		{
+			temp_type = temp_type->next;
+		}
+		if(temp_type)
+		{
+			temp_type->blocks++;
+			temp_type->memSize += sizeof(*p);
+		}
+		else
+		{
+			MemoryManager::TypeNode *newType = static_cast<MemoryManager::TypeNode*>(malloc(sizeof(MemoryManager::TypeNode)));
+			newType->type = type;
+			newType->blocks = 1;
+			newType->memSize = sizeof(*p);
+			MemoryManager::Get().AddTypeNode(newType);
 		}
 	}
 	return p;
