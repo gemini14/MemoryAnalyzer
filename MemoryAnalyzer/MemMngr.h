@@ -101,11 +101,14 @@ private:
 	MemInfoNode *head_new;
 	//! Linked list of array allocations & information
 	MemInfoNode *head_new_array;
-	//!
+	//! Pointer to last allocated block of memory.  The detailing function checks this variable first to save time.  If it
+	//! the correct node, it will use it; otherwise, it will search for the node using RetrieveAddrNode.
 	AddrListNode *mostRecentAllocAddrNode;
 
 	size_t currentMemory;
 	size_t peakMemory;
+	long long currentBlocks;
+	long long peakBlocks;
 
 	const char *unknown;
 
@@ -206,15 +209,25 @@ public:
 	*/
 	void DisplayAllocations(bool displayNumberOfAllocsFirst = true, bool displayDetail = false);
 
+	/** @brief Retrieves the number of blocks allocated at present
+		@return Number of allocated blocks
+	*/
+	long long GetCurrentBlocks();
+
 	/** @brief Retrieves the current allocated memory
 	@return Currently allocated memory in bytes
 	*/
 	size_t GetCurrentMemory();
 
+	/** @brief Retrieves the peak number of allocated blocks
+		@return Largest number of blocks allocated at any time during program execution
+	*/
+	long long GetPeakBlocks();
+
 	/** @brief Retrieves the peak allocated memory
 	@return Largest amount of memory allocated at any time during program execution in bytes
 	*/
-	size_t GetPeakMemory();
+	size_t GetPeakMemory();	
 
 #ifdef _WIN32
 	/** @brief Calls Windows-specific function to check the state of the heap and display a message in the console 

@@ -13,7 +13,7 @@ using namespace std;
 
 MemoryManager::MemoryManager() 
 	: head_new(nullptr), head_new_array(nullptr), showAllAllocs(false), showAllDeallocs(false),
-	peakMemory(0), currentMemory(0), unknown("Unknown"), dumpLeaksToFile(false)
+	peakMemory(0), currentMemory(0), unknown("Unknown"), dumpLeaksToFile(false), currentBlocks(0), peakBlocks(0)
 {
 }
 
@@ -318,6 +318,11 @@ void* MemoryManager::Allocate(size_t size, AllocationType type, bool throwEx)
 	AddAllocationToList(size, type, ptr + sizeof(AllocationHeader));
 
 	// update stats
+	currentBlocks++;
+	if(currentBlocks > peakBlocks)
+	{
+		peakBlocks = currentBlocks;
+	}
 	currentMemory += size;
 	if(currentMemory > peakMemory)
 	{
@@ -345,6 +350,7 @@ void MemoryManager::Deallocate(void *ptr, AllocationType type, bool throwEx)
 		}
 		RemoveAllocationFromList(ptr, type);
 		currentMemory -= header->rawSize;
+		currentBlocks--;
 		// free the header address, since that points to the block originally alloc'd through malloc
 		free(header);
 	}
@@ -391,9 +397,19 @@ void MemoryManager::DisplayAllocations(bool displayNumberOfAllocsFirst, bool dis
 		<< " non-array, " << totalAllocsNewArray << " array)\n\n";
 }
 
+long long MemoryManager::GetCurrentBlocks()
+{
+	return currentBlocks;
+}
+
 size_t MemoryManager::GetCurrentMemory()
 {
 	return currentMemory;
+}
+
+long long MemoryManager::GetPeakBlocks()
+{
+	return peakBlocks;
 }
 
 size_t MemoryManager::GetPeakMemory()
