@@ -1,6 +1,7 @@
 #include "MemMngr.h"
 
 #include <exception>
+#include <iomanip>
 #include <iostream>
 
 #ifdef _WIN32
@@ -10,7 +11,7 @@
 using namespace std;
 
 
-MemoryManager::MemoryManager() 
+MemoryManager::MemoryManager()
 	: head_new(nullptr), head_new_array(nullptr), showAllAllocs(false), showAllDeallocs(false),
 	peakMemory(0), currentMemory(0), unknown("Unknown"), dumpLeaksToFile(false), currentBlocks(0), 
 	peakBlocks(0), head_types(nullptr)
@@ -472,7 +473,19 @@ void MemoryManager::DisplayAllocations(bool displayNumberOfAllocsFirst, bool dis
 
 void MemoryManager::DisplayStatTable()
 {
-	
+	cout << left << setw(32) << "Object Type" << setw(15) << "Blocks" << setw(15) << "Memory";
+	cout << "\n=====================================================================";
+	auto head = head_types;
+	while(head)
+	{
+		if(head->blocks > 0)
+		{
+			cout << "\n" << left << setfill('.') << setw(32) << head->type 
+				<< setw(15) << head->blocks << setw(15) << setfill(' ') << head->memSize;
+		}
+		head = head->next;
+	}
+	cout << "\n\n";
 }
 
 long long MemoryManager::GetCurrentBlocks()
