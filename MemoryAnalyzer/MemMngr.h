@@ -10,6 +10,7 @@
 //#error Do not include this file directly.  Please include MemoryAnalyzer.h instead.
 //#endif
 
+#include <assert.h>
 #include <fstream>
 #include <stdlib.h>
 #include <typeinfo>
@@ -153,10 +154,11 @@ private:
 	*/
 	void AddAllocationDetails(void *ptr, const char *file, int line, const char *type, size_t objectSize);
 
-	/** @brief Adds a new TypeNode to the head of the list
-		@param newType Pointer to a new TypeNode which should be inserted at the head of the list
+	/** @brief Updates stats inn type information list
+		@param type Object type name
+		@param size Object's size in memory
 	*/
-	void AddTypeNode(TypeNode *newType);
+	void AddToTypeList(const char *type, size_t size);
 
 	/** @brief Allocates memory upon request from the overloaded new operator
 	@param size Requested allocation size
@@ -187,16 +189,17 @@ private:
 	*/
 	MemInfoNode* GetListHead(AllocationType type);
 
-	/** @brief Accessor function to acquire head node of type information list
-		@return Pointer to head of type information linked list
-	*/
-	TypeNode* GetTypeHead();
-
 	/**	@brief Removes information for a single allocation from the internal list
 	@param ptr Pointer to the freed memory which needs to be deleted from the internal list
 	@param type Allocation type of ptr
 	*/
 	void RemoveAllocationFromList(void *ptr, AllocationType type);
+
+	/** @brief Performs a stat update in the type list after a deallocation
+		@param type String of the block's typename
+		@param size Object's size in memory
+	*/
+	void RemoveFromTypeList(const char *type, size_t size);
 
 	/** @brief Finds the information node associated with the address.
 		@param ptr Address of the desired node
@@ -204,6 +207,12 @@ private:
 		@return Pointer to the AddrListNode containing information about the allocation
 	*/
 	AddrListNode* RetrieveAddrNode(void *ptr, size_t objectSize = -1);
+
+	/** @brief Finds the size of the object pointed to
+		@param ptr Address of the object
+		@return Size of the object in bytes
+	*/
+	size_t RetrieveAddrSize(void *ptr);
 
 public:
 
@@ -294,26 +303,10 @@ T* operator*(const SourcePacket& packet, T* p)
 			cout << "\tObject Type: " << type << "\n\tFile: " << packet.file << "\n\tLine: " << packet.line << "\n\n";
 		}
 		
-		MemoryManager::TypeNode *temp_type = MemoryManager::Get().GetTypeHead();
-		// here the intent is that if it's not null and the type strings are not equal, keep searching
-		// note strcmp will return 0 if they are equal, so upon finding a match, the condition will fail and break the loop
-		while(temp_type && strcmp(temp_type->type, type))
-		{
-			temp_type = temp_type->next;
-		}
-		if(temp_type)
-		{
-			temp_type->blocks++;
-			temp_type->memSize += sizeof(*p);
-		}
-		else
-		{
-			MemoryManager::TypeNode *newType = static_cast<MemoryManager::TypeNode*>(malloc(sizeof(MemoryManager::TypeNode)));
-			newType->type = type;
-			newType->blocks = 1;
-			newType->memSize = sizeof(*p);
-			MemoryManager::Get().AddTypeNode(newType);
-		}
+		size_t objectSize = MemoryManager::Get().RetrieveAddrSize(p);
+		assert(objectSize != -1);
+		// we need to send the size in case the ptr is pointing to an array, in which case sizeof(*p) would be wrong
+		MemoryManager::Get().AddToTypeList(type, objectSize);
 	}
 	return p;
 }

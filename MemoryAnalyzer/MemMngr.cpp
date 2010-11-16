@@ -1,6 +1,5 @@
 #include "MemMngr.h"
 
-#include <assert.h>
 #include <exception>
 #include <iostream>
 
@@ -147,6 +146,29 @@ void MemoryManager::AddAllocationToList(size_t size, AllocationType type, void *
 	}
 }
 
+void MemoryManager::AddToTypeList(const char *type, size_t size)
+{
+	TypeNode *temp_type = head_types;
+	while(temp_type && strcmp(temp_type->type, type))
+	{
+		temp_type = temp_type->next;
+	}
+	if(temp_type)
+	{
+		temp_type->blocks++;
+		temp_type->memSize += size;
+	}
+	else
+	{
+		TypeNode *newType = static_cast<TypeNode*>(malloc(sizeof(TypeNode)));
+		newType->type = type;
+		newType->blocks = 1;
+		newType->memSize = size;
+		newType->next = head_types;
+		head_types = newType;
+	}
+}
+
 void MemoryManager::RemoveAllocationFromList(void *ptr, AllocationType type)
 {
 	MemInfoNode *head = GetListHead(type);
@@ -193,8 +215,24 @@ void MemoryManager::RemoveAllocationFromList(void *ptr, AllocationType type)
 		cout << "\n\tObject Type: " << addressNode->type << "\n\tFile: " << addressNode->file 
 			<< "\n\tLine: " << addressNode->line << "\n\n";
 	}
+	if(addressNode->type != unknown)
+	{
+		RemoveFromTypeList(addressNode->type, current->size);
+	}
 	free(addressNode);
 	current->numberOfAllocations--;
+}
+
+void MemoryManager::RemoveFromTypeList(const char *type, size_t size)
+{
+	TypeNode *temp_type = head_types;
+	while(temp_type && strcmp(temp_type->type, type))
+	{
+		temp_type = temp_type->next;
+	}
+	assert(temp_type);
+	temp_type->blocks--;
+	temp_type->memSize -= size;
 }
 
 MemoryManager::AddrListNode* MemoryManager::RetrieveAddrNode(void *ptr, size_t objectSize)
@@ -223,7 +261,7 @@ MemoryManager::AddrListNode* MemoryManager::RetrieveAddrNode(void *ptr, size_t o
 				temp_mem = temp_mem->next;
 			}
 		}
-		// but if we do know the size, skip through the memory nodes for the lists until we find the correct size
+		// but if we do know the size, skip through the memory nodes until we find the correct size
 		else
 		{
 			for( ; temp_mem && temp_mem->size != objectSize; temp_mem = temp_mem->next);
@@ -254,14 +292,43 @@ MemoryManager::AddrListNode* MemoryManager::RetrieveAddrNode(void *ptr, size_t o
 	return nullptr;
 }
 
+size_t MemoryManager::RetrieveAddrSize(void *ptr)
+{
+	auto sizeFind = [=](MemInfoNode *head) -> size_t
+	{
+		while(head)
+		{
+			AddrListNode *temp_addr = head->addresses;
+			// move down the address list until it's null or the address matches
+			while(temp_addr && temp_addr->address != ptr)
+			{
+				temp_addr = temp_addr->next;
+			}
+			// if it stopped on a non-null addr node and it matches the address, return it
+			if(temp_addr && temp_addr->address == ptr)
+			{
+				return head->size;
+			}
+			// otherwise, move to the next size
+			head = head->next;
+		}
+		// node wasn't found
+		return 0;
+	};
+
+	size_t size = sizeFind(head_new);
+	if(size)
+	{
+		return size;
+	}
+	size = sizeFind(head_new_array);
+	// if size was found, return it, otherwise return -1 to indicate failure
+	return (size ? size : -1);
+}
+
 const char* MemoryManager::GetAllocTypeAsString(AllocationType type)
 {
 	return type == ALLOC_NEW ? "non-array" : "array";
-}
-
-MemoryManager::TypeNode* MemoryManager::GetTypeHead()
-{
-	return head_types;
 }
 
 MemoryManager::MemInfoNode* MemoryManager::GetListHead(AllocationType type)
@@ -294,12 +361,6 @@ void MemoryManager::AddAllocationDetails(void *ptr, const char *file, int line, 
 	mostRecentAllocAddrNode->file = file;
 	mostRecentAllocAddrNode->line = line;
 	mostRecentAllocAddrNode->type = type;
-}
-
-void MemoryManager::AddTypeNode(TypeNode *newType)
-{
-	newType->next = head_types;
-	head_types = newType;
 }
 
 void* MemoryManager::Allocate(size_t size, AllocationType type, bool throwEx)
