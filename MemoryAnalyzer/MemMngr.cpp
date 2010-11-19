@@ -473,9 +473,6 @@ void MemoryManager::DisplayAllocations(bool displayNumberOfAllocsFirst, bool dis
 
 void MemoryManager::DisplayStatTable()
 {
-	cout << left << setw(32) << "Object Type" << setw(15) << "Blocks" << setw(15) << "Memory";
-	cout << "\n=====================================================================";
-
 	// The following lambda is a very lightly modified version of Simon Tatham's mergesort for linked lists.
 	// http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.html 
 	/*
@@ -607,15 +604,27 @@ void MemoryManager::DisplayStatTable()
 		}
 	};
 
-	head_types = sortList(head_types);
+	cout << left << setw(32) << "Object Type" 
+		<< setw(12) << "Blocks" 
+		<< setw(8) << "%"
+		<< setw(12) << "Memory" 
+		<< setw(5) << "%";
+	cout << "\n====================================================================";
 
+	head_types = sortList(head_types);
 	auto head = head_types;
 	while(head)
 	{
 		if(head->blocks > 0)
 		{
+			float memPercent = (static_cast<float>(head->memSize) / static_cast<float>(currentMemory)) * 100;
+			float blockPercent = (static_cast<float>(head->blocks) / static_cast<float>(currentBlocks)) * 100;
+
 			cout << "\n" << left << setfill('.') << setw(32) << head->type 
-				<< setw(15) << head->blocks << setw(15) << setfill(' ') << head->memSize;
+				<< setw(12) << head->blocks 
+				<< setw(8) << fixed << setprecision(1) << blockPercent
+				<< setw(12) << head->memSize
+				<< setw(5) << setfill(' ') << fixed << setprecision(1) << memPercent;
 		}
 		head = head->next;
 	}
