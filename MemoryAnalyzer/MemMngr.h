@@ -213,7 +213,7 @@ private:
 		@return Size of the object in bytes
 	*/
 	size_t RetrieveAddrSize(void *ptr);
-
+	
 public:
 
 	/** Set to true to display information about every allocation in the console (default: false). Warning: Depending on
