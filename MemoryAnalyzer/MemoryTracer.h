@@ -2,18 +2,15 @@
 @brief Internal implementation -- do not include this file directly.  Please include MemoryAnalyzer.h instead.
 */
 
-#ifndef MEMMNGR_H
-#define MEMMNGR_H
+#ifndef MEMORYTRACER_H
+#define MEMORYTRACER_H
 
-
-//#ifndef MEMORYANALYZER_H
-//#error Do not include this file directly.  Please include MemoryAnalyzer.h instead.
-//#endif
 
 #include <assert.h>
 #include <fstream>
 #include <stdlib.h>
 #include <typeinfo>
+
 
 /** @enum AllocationType
 This is used to differentiate between memory allocated through either new or new[]
@@ -48,14 +45,14 @@ template<typename T>
 T* operator*(const SourcePacket& packet, T* p);
 
 
-/** @class MemoryManager
+/** @class MemoryTracer
 @brief Internal implementation of the MemoryAnalyzer tool.
 
 This class intercepts and handles all allocations and deallocations. It can	display info such as peak memory, 
 number of allocations, and address lists for allocations, to name a few pieces of information it stores. It is 
 implemented as a singleton, has very few dependencies (all of which are standard), and is portable.
 */
-class MemoryManager
+class MemoryTracer
 {
 private:
 
@@ -130,10 +127,10 @@ private:
 
 	std::ofstream dumpFile;
 
-	MemoryManager();
-	~MemoryManager();
-	MemoryManager(const MemoryManager&);
-	MemoryManager& operator=(const MemoryManager&);
+	MemoryTracer();
+	~MemoryTracer();
+	MemoryTracer(const MemoryTracer&);
+	MemoryTracer& operator=(const MemoryTracer&);
 
 	/**	@brief Adds information for a single allocation to the internal list
 	@param size Size of the allocation requested by the program
@@ -231,7 +228,7 @@ public:
 	/** @brief Singleton access
 	@return Reference to singleton object
 	*/
-	static MemoryManager& Get();
+	static MemoryTracer& Get();
 
 	/** @brief Displays current memory allocations in the console according to criteria
 	@param displayNumberOfAllocsFirst Set to true to display the list according to the number of allocations
@@ -296,17 +293,27 @@ T* operator*(const SourcePacket& packet, T* p)
 {
 	if(p)
 	{
-		const char *type = typeid(*p).name();
-		MemoryManager::Get().AddAllocationDetails(p, packet.file, packet.line, type, sizeof(*p));
-		if(MemoryManager::Get().showAllAllocs)
+		const char *type = nullptr;
+		try
 		{
-			cout << "\tObject Type: " << type << "\n\tFile: " << packet.file << "\n\tLine: " << packet.line << "\n\n";
+			 type = typeid(*p).name();
 		}
-		
-		size_t objectSize = MemoryManager::Get().RetrieveAddrSize(p);
+		catch(std::bad_typeid& e)
+		{
+			cout << e.what() << "\n";
+			return p;
+		}
+
+		MemoryTracer::Get().AddAllocationDetails(p, packet.file, packet.line, type, sizeof(*p));
+		if(MemoryTracer::Get().showAllAllocs)
+		{
+			cout << "Allocation Information Trace >\n\tObject Type: " << type << "\n\tFile: " << packet.file << "\n\tLine: " << packet.line << "\n\n";
+		}
+
+		size_t objectSize = MemoryTracer::Get().RetrieveAddrSize(p);
 		assert(objectSize != -1);
 		// we need to send the size in case the ptr is pointing to an array, in which case sizeof(*p) would be wrong
-		MemoryManager::Get().AddToTypeList(type, objectSize);
+		MemoryTracer::Get().AddToTypeList(type, objectSize);
 	}
 	return p;
 }

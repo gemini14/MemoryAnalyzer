@@ -72,18 +72,22 @@ Example: memAnalyzer->HeapCheck();
 
 #ifdef _DEBUG
 
-#include "MemMngr.h"
+#include "MemoryTracer.h"
 
-/** @def new
-Enables automatic inclusion of source filename and line number
+#ifndef DISABLE_DEBUG_INFO_COLLECTION
+
+/** @def DEBUG_NEW
+Enables automatic inclusion of source filename, line number, and object type
 */
 #define DEBUG_NEW SourcePacket(__FILE__, __LINE__) * new
 #define new DEBUG_NEW
 
+#endif
+
 /**
 Singleton global variable for memory analyzer
 */
-extern MemoryManager *memAnalyzer;
+extern MemoryTracer *memAnalyzer;
 
 #endif
 

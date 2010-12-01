@@ -1,4 +1,4 @@
 #include "MemoryAnalyzer.h"
 
 
-MemoryManager *memAnalyzer = &MemoryManager::Get();
+MemoryTracer *memAnalyzer = &MemoryTracer::Get();

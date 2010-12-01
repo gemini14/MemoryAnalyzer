@@ -1,4 +1,4 @@
-#include "MemMngr.h"
+#include "MemoryTracer.h"
 
 #include <exception>
 #include <iomanip>
@@ -11,14 +11,14 @@
 using namespace std;
 
 
-MemoryManager::MemoryManager()
+MemoryTracer::MemoryTracer()
 	: head_new(nullptr), head_new_array(nullptr), showAllAllocs(false), showAllDeallocs(false),
 	peakMemory(0), currentMemory(0), unknown("Unknown"), dumpLeaksToFile(false), currentBlocks(0), 
 	peakBlocks(0), head_types(nullptr)
 {
 }
 
-MemoryManager::~MemoryManager()
+MemoryTracer::~MemoryTracer()
 {
 	int totalLeaks = 0;
 
@@ -90,7 +90,7 @@ MemoryManager::~MemoryManager()
 	cin.get();
 }
 
-void MemoryManager::AddAllocationToList(size_t size, AllocationType type, void *ptr)
+void MemoryTracer::AddAllocationToList(size_t size, AllocationType type, void *ptr)
 {
 	MemInfoNode *head = GetListHead(type);
 	auto current = head;
@@ -147,7 +147,7 @@ void MemoryManager::AddAllocationToList(size_t size, AllocationType type, void *
 	}
 }
 
-void MemoryManager::AddToTypeList(const char *type, size_t size)
+void MemoryTracer::AddToTypeList(const char *type, size_t size)
 {
 	TypeNode *temp_type = head_types;
 	while(temp_type && strcmp(temp_type->type, type))
@@ -170,7 +170,7 @@ void MemoryManager::AddToTypeList(const char *type, size_t size)
 	}
 }
 
-void MemoryManager::RemoveAllocationFromList(void *ptr, AllocationType type)
+void MemoryTracer::RemoveAllocationFromList(void *ptr, AllocationType type)
 {
 	MemInfoNode *head = GetListHead(type);
 	unsigned char *rawPtr = static_cast<unsigned char*>(ptr);
@@ -224,7 +224,7 @@ void MemoryManager::RemoveAllocationFromList(void *ptr, AllocationType type)
 	current->numberOfAllocations--;
 }
 
-void MemoryManager::RemoveFromTypeList(const char *type, size_t size)
+void MemoryTracer::RemoveFromTypeList(const char *type, size_t size)
 {
 	TypeNode *temp_type = head_types;
 	while(temp_type && strcmp(temp_type->type, type))
@@ -236,7 +236,7 @@ void MemoryManager::RemoveFromTypeList(const char *type, size_t size)
 	temp_type->memSize -= size;
 }
 
-MemoryManager::AddrListNode* MemoryManager::RetrieveAddrNode(void *ptr, size_t objectSize)
+MemoryTracer::AddrListNode* MemoryTracer::RetrieveAddrNode(void *ptr, size_t objectSize)
 {
 	AddrListNode *temp_addr = nullptr;
 	auto addressFind = [&](MemInfoNode *head) -> bool
@@ -293,7 +293,7 @@ MemoryManager::AddrListNode* MemoryManager::RetrieveAddrNode(void *ptr, size_t o
 	return nullptr;
 }
 
-size_t MemoryManager::RetrieveAddrSize(void *ptr)
+size_t MemoryTracer::RetrieveAddrSize(void *ptr)
 {
 	auto sizeFind = [=](MemInfoNode *head) -> size_t
 	{
@@ -327,23 +327,23 @@ size_t MemoryManager::RetrieveAddrSize(void *ptr)
 	return (size ? size : -1);
 }
 
-const char* MemoryManager::GetAllocTypeAsString(AllocationType type)
+const char* MemoryTracer::GetAllocTypeAsString(AllocationType type)
 {
 	return type == ALLOC_NEW ? "non-array" : "array";
 }
 
-MemoryManager::MemInfoNode* MemoryManager::GetListHead(AllocationType type)
+MemoryTracer::MemInfoNode* MemoryTracer::GetListHead(AllocationType type)
 {
 	return type == ALLOC_NEW ? head_new : head_new_array;
 }
 
-MemoryManager& MemoryManager::Get()
+MemoryTracer& MemoryTracer::Get()
 {
-	static MemoryManager mmgr;
+	static MemoryTracer mmgr;
 	return mmgr;
 }
 
-void MemoryManager::AddAllocationDetails(void *ptr, const char *file, int line, const char *type, size_t objectSize)
+void MemoryTracer::AddAllocationDetails(void *ptr, const char *file, int line, const char *type, size_t objectSize)
 {
 	if(!ptr)
 		return;
@@ -364,7 +364,7 @@ void MemoryManager::AddAllocationDetails(void *ptr, const char *file, int line, 
 	mostRecentAllocAddrNode->type = type;
 }
 
-void* MemoryManager::Allocate(size_t size, AllocationType type, bool throwEx)
+void* MemoryTracer::Allocate(size_t size, AllocationType type, bool throwEx)
 {
 	// cast necessary since this is C++ (note the additional bytes for the header)
 	unsigned char *ptr = static_cast<unsigned char*>(malloc(size + sizeof(AllocationHeader)));
@@ -410,7 +410,7 @@ void* MemoryManager::Allocate(size_t size, AllocationType type, bool throwEx)
 	return ptr + sizeof(AllocationHeader);
 }
 
-void MemoryManager::Deallocate(void *ptr, AllocationType type, bool throwEx)
+void MemoryTracer::Deallocate(void *ptr, AllocationType type, bool throwEx)
 {
 	// nothing happens if a nullptr is passed in
 	if(ptr)
@@ -430,7 +430,7 @@ void MemoryManager::Deallocate(void *ptr, AllocationType type, bool throwEx)
 	}
 }
 
-void MemoryManager::DisplayAllocations(bool displayNumberOfAllocsFirst, bool displayDetail)
+void MemoryTracer::DisplayAllocations(bool displayNumberOfAllocsFirst, bool displayDetail)
 {
 	int totalAllocsNew = 0, totalAllocsNewArray = 0;
 	auto DisplayAllocs = [=](MemInfoNode *head, AllocationType type, int &allocTotal)
@@ -471,7 +471,7 @@ void MemoryManager::DisplayAllocations(bool displayNumberOfAllocsFirst, bool dis
 		<< " non-array, " << totalAllocsNewArray << " array)\n\n";
 }
 
-void MemoryManager::DisplayStatTable()
+void MemoryTracer::DisplayStatTable()
 {
 	// The following lambda is a very lightly modified version of Simon Tatham's mergesort for linked lists.
 	// http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.html 
@@ -631,28 +631,28 @@ void MemoryManager::DisplayStatTable()
 	cout << "\n\n";
 }
 
-long long MemoryManager::GetCurrentBlocks()
+long long MemoryTracer::GetCurrentBlocks()
 {
 	return currentBlocks;
 }
 
-size_t MemoryManager::GetCurrentMemory()
+size_t MemoryTracer::GetCurrentMemory()
 {
 	return currentMemory;
 }
 
-long long MemoryManager::GetPeakBlocks()
+long long MemoryTracer::GetPeakBlocks()
 {
 	return peakBlocks;
 }
 
-size_t MemoryManager::GetPeakMemory()
+size_t MemoryTracer::GetPeakMemory()
 {
 	return peakMemory;
 }
 
 #ifdef _WIN32
-void MemoryManager::HeapCheck()
+void MemoryTracer::HeapCheck()
 {
 	switch(_heapchk())
 	{
@@ -678,25 +678,25 @@ void MemoryManager::HeapCheck()
 // exception version
 void* operator new(size_t size)
 {
-	return MemoryManager::Get().Allocate(size, ALLOC_NEW, true);
+	return MemoryTracer::Get().Allocate(size, ALLOC_NEW, true);
 }
 
 // non-exception version
 void* operator new(size_t size, const std::nothrow_t&)
 {
-	return MemoryManager::Get().Allocate(size, ALLOC_NEW);
+	return MemoryTracer::Get().Allocate(size, ALLOC_NEW);
 }
 
 // exception version
 void operator delete(void *ptr)
 {
-	MemoryManager::Get().Deallocate(ptr, ALLOC_NEW, true);
+	MemoryTracer::Get().Deallocate(ptr, ALLOC_NEW, true);
 }
 
 // non-exception version
 void operator delete(void *ptr, const std::nothrow_t&)
 {
-	MemoryManager::Get().Deallocate(ptr, ALLOC_NEW);
+	MemoryTracer::Get().Deallocate(ptr, ALLOC_NEW);
 }
 
 
@@ -705,23 +705,23 @@ void operator delete(void *ptr, const std::nothrow_t&)
 // exception version
 void* operator new[](size_t size)
 {
-	return MemoryManager::Get().Allocate(size, ALLOC_NEW_ARRAY, true);
+	return MemoryTracer::Get().Allocate(size, ALLOC_NEW_ARRAY, true);
 }
 
 // non-exception version
 void* operator new[](size_t size, const std::nothrow_t&)
 {
-	return MemoryManager::Get().Allocate(size, ALLOC_NEW_ARRAY);
+	return MemoryTracer::Get().Allocate(size, ALLOC_NEW_ARRAY);
 }
 
 // exception version
 void operator delete[](void *ptr)
 {
-	MemoryManager::Get().Deallocate(ptr, ALLOC_NEW_ARRAY, true);
+	MemoryTracer::Get().Deallocate(ptr, ALLOC_NEW_ARRAY, true);
 }
 
 // non-exception version
 void operator delete[](void *ptr, const std::nothrow_t&)
 {
-	MemoryManager::Get().Deallocate(ptr, ALLOC_NEW_ARRAY);
+	MemoryTracer::Get().Deallocate(ptr, ALLOC_NEW_ARRAY);
 }
