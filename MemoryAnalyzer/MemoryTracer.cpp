@@ -147,6 +147,27 @@ void MemoryTracer::AddAllocationToList(size_t size, AllocationType type, void *p
 	}
 }
 
+void MemoryTracer::AddAllocationDetails(void *ptr, const char *file, int line, const char *type, size_t objectSize)
+{
+	if(!ptr)
+		return;
+
+	if(mostRecentAllocAddrNode->address != ptr)
+	{
+		mostRecentAllocAddrNode = RetrieveAddrNode(ptr, objectSize);
+		// if it returns null, it couldn't be found in the stored lists, possibly indicating some problem
+		// during allocation/construction
+		if(!mostRecentAllocAddrNode)
+		{
+			return;
+		}
+	}
+
+	mostRecentAllocAddrNode->file = file;
+	mostRecentAllocAddrNode->line = line;
+	mostRecentAllocAddrNode->type = type;
+}
+
 void MemoryTracer::AddToTypeList(const char *type, size_t size)
 {
 	TypeNode *temp_type = head_types;
@@ -168,6 +189,82 @@ void MemoryTracer::AddToTypeList(const char *type, size_t size)
 		newType->next = head_types;
 		head_types = newType;
 	}
+}
+
+void* MemoryTracer::Allocate(size_t size, AllocationType type, bool throwEx)
+{
+	// cast necessary since this is C++ (note the additional bytes for the header)
+	unsigned char *ptr = static_cast<unsigned char*>(malloc(size + sizeof(AllocationHeader)));
+	// if there was a problem getting memory, either throw an exception or nullptr depending on what version of new
+	// was used
+	if(!ptr)
+	{
+		if(throwEx)
+		{
+			throw std::bad_alloc("Failed to acquire memory.\n");
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+
+	// stick the pertinent information for the allocation in the header
+	AllocationHeader *header = reinterpret_cast<AllocationHeader*>(ptr);
+	header->rawSize = size;
+	header->type = type;
+
+	// only store the address of the memory we give to the user, not the (header + the mem) address, since they will 
+	// release it with that address
+	AddAllocationToList(size, type, ptr + sizeof(AllocationHeader));
+
+	// update stats
+	currentBlocks++;
+	if(currentBlocks > peakBlocks)
+	{
+		peakBlocks = currentBlocks;
+	}
+	currentMemory += size;
+	if(currentMemory > peakMemory)
+	{
+		peakMemory = currentMemory;
+	}
+
+	if(showAllAllocs)
+	{
+		cout << "Allocation >\n\tSize: " <<  size << "\n\tAlloc Type: " << GetAllocTypeAsString(type) << "\n\n";
+	}
+	return ptr + sizeof(AllocationHeader);
+}
+
+void MemoryTracer::Deallocate(void *ptr, AllocationType type, bool throwEx)
+{
+	// nothing happens if a nullptr is passed in
+	if(ptr)
+	{
+		unsigned char *rawPtr = static_cast<unsigned char*>(ptr);
+		AllocationHeader *header = reinterpret_cast<AllocationHeader*>(rawPtr - sizeof(AllocationHeader));
+		if(showAllDeallocs)
+		{
+			cout << "Deallocation >\n\tSize: " <<  header->rawSize << "\n\tAlloc Type: " 
+				<< GetAllocTypeAsString(header->type);
+		}
+		RemoveAllocationFromList(ptr, type);
+		currentMemory -= header->rawSize;
+		currentBlocks--;
+		// free the header address, since that points to the block originally alloc'd through malloc
+		free(header);
+	}
+}
+
+const char* MemoryTracer::GetAllocTypeAsString(AllocationType type)
+{
+	return type == ALLOC_NEW ? "non-array" : "array";
+}
+
+MemoryTracer::MemInfoNode* MemoryTracer::GetListHead(AllocationType type)
+{
+	return type == ALLOC_NEW ? head_new : head_new_array;
 }
 
 void MemoryTracer::RemoveAllocationFromList(void *ptr, AllocationType type)
@@ -327,109 +424,6 @@ size_t MemoryTracer::RetrieveAddrSize(void *ptr)
 	return (size ? size : -1);
 }
 
-const char* MemoryTracer::GetAllocTypeAsString(AllocationType type)
-{
-	return type == ALLOC_NEW ? "non-array" : "array";
-}
-
-MemoryTracer::MemInfoNode* MemoryTracer::GetListHead(AllocationType type)
-{
-	return type == ALLOC_NEW ? head_new : head_new_array;
-}
-
-MemoryTracer& MemoryTracer::Get()
-{
-	static MemoryTracer mmgr;
-	return mmgr;
-}
-
-void MemoryTracer::AddAllocationDetails(void *ptr, const char *file, int line, const char *type, size_t objectSize)
-{
-	if(!ptr)
-		return;
-
-	if(mostRecentAllocAddrNode->address != ptr)
-	{
-		mostRecentAllocAddrNode = RetrieveAddrNode(ptr, objectSize);
-		// if it returns null, it couldn't be found in the stored lists, possibly indicating some problem
-		// during allocation/construction
-		if(!mostRecentAllocAddrNode)
-		{
-			return;
-		}
-	}
-
-	mostRecentAllocAddrNode->file = file;
-	mostRecentAllocAddrNode->line = line;
-	mostRecentAllocAddrNode->type = type;
-}
-
-void* MemoryTracer::Allocate(size_t size, AllocationType type, bool throwEx)
-{
-	// cast necessary since this is C++ (note the additional bytes for the header)
-	unsigned char *ptr = static_cast<unsigned char*>(malloc(size + sizeof(AllocationHeader)));
-	// if there was a problem getting memory, either throw an exception or nullptr depending on what version of new
-	// was used
-	if(!ptr)
-	{
-		if(throwEx)
-		{
-			throw std::bad_alloc("Failed to acquire memory.\n");
-		}
-		else
-		{
-			return nullptr;
-		}
-	}
-
-	// stick the pertinent information for the allocation in the header
-	AllocationHeader *header = reinterpret_cast<AllocationHeader*>(ptr);
-	header->rawSize = size;
-	header->type = type;
-
-	// only store the address of the memory we give to the user, not the (header + the mem) address, since they will 
-	// release it with that address
-	AddAllocationToList(size, type, ptr + sizeof(AllocationHeader));
-
-	// update stats
-	currentBlocks++;
-	if(currentBlocks > peakBlocks)
-	{
-		peakBlocks = currentBlocks;
-	}
-	currentMemory += size;
-	if(currentMemory > peakMemory)
-	{
-		peakMemory = currentMemory;
-	}
-
-	if(showAllAllocs)
-	{
-		cout << "Allocation >\n\tSize: " <<  size << "\n\tAlloc Type: " << GetAllocTypeAsString(type) << "\n\n";
-	}
-	return ptr + sizeof(AllocationHeader);
-}
-
-void MemoryTracer::Deallocate(void *ptr, AllocationType type, bool throwEx)
-{
-	// nothing happens if a nullptr is passed in
-	if(ptr)
-	{
-		unsigned char *rawPtr = static_cast<unsigned char*>(ptr);
-		AllocationHeader *header = reinterpret_cast<AllocationHeader*>(rawPtr - sizeof(AllocationHeader));
-		if(showAllDeallocs)
-		{
-			cout << "Deallocation >\n\tSize: " <<  header->rawSize << "\n\tAlloc Type: " 
-				<< GetAllocTypeAsString(header->type);
-		}
-		RemoveAllocationFromList(ptr, type);
-		currentMemory -= header->rawSize;
-		currentBlocks--;
-		// free the header address, since that points to the block originally alloc'd through malloc
-		free(header);
-	}
-}
-
 void MemoryTracer::DisplayAllocations(bool displayNumberOfAllocsFirst, bool displayDetail)
 {
 	int totalAllocsNew = 0, totalAllocsNewArray = 0;
@@ -465,9 +459,11 @@ void MemoryTracer::DisplayAllocations(bool displayNumberOfAllocsFirst, bool disp
 
 	cout << "<<Non-array allocations>>\n";
 	DisplayAllocs(head_new, ALLOC_NEW, totalAllocsNew);
-	cout << "<<Array allocations>>\n";
+
+	cout << "\n<<Array allocations>>\n";
 	DisplayAllocs(head_new_array, ALLOC_NEW_ARRAY, totalAllocsNewArray);
-	cout << "Total allocations: " << totalAllocsNew + totalAllocsNewArray << " (" << totalAllocsNew 
+	
+	cout << "\nTotal allocations: " << totalAllocsNew + totalAllocsNewArray << " (" << totalAllocsNew 
 		<< " non-array, " << totalAllocsNewArray << " array)\n\n";
 }
 
@@ -629,6 +625,12 @@ void MemoryTracer::DisplayStatTable()
 		head = head->next;
 	}
 	cout << "\n\n";
+}
+
+MemoryTracer& MemoryTracer::Get()
+{
+	static MemoryTracer mmgr;
+	return mmgr;
 }
 
 long long MemoryTracer::GetCurrentBlocks()

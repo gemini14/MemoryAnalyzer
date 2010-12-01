@@ -8,9 +8,9 @@
 MemoryAnalyzer is a very simple, portable memory information tool for C++ projects.  It was written for educational
 purposes, for determining the correct memory scheme to use when developing video games (for example, to help
 the user determine whether using a pool would be worthwhile), and for detecting leaks.  It was written with
-single-threaded applications in	mind (although you are free to extend it to multi-threaded apps) and has very
-few dependencies, all of which are part of the standard library.  MemoryAnalyzer was also designed to be simple
-to understand and use (both installation and usage).
+single-threaded applications in	mind and is not thread-safe (although you are free to extend it for multi-threaded apps)
+and has very few dependencies, all of which are part of the standard library.  MemoryAnalyzer was also designed to be
+simple to understand and use (both installation and usage).
 
 Note that since it was written with portability in mind, it does not have all the features of memory tools written
 specifically for your platform.  It is also not intended to replace the more sophisticated tools out there (such as
@@ -57,6 +57,22 @@ during your program's run, call GetPeakMemory().
 
 Example: cout << memAnalyzer->GetCurrentMemory();
 
+If you are using operator new to get raw memory, MemoryAnalyzer will fail to compile due to how it tags allocations.  You
+can still use MemoryAnalyzer to track memory sizes, allocations types (array/non-array), addresses, and quantities, however.
+Just define DISABLE_DEBUG_INFO_COLLECTION before including MemoryAnalyzer.h.  This can also be used if you want to improve
+performance slightly in your debug builds.
+
+Example: "#define DISABLE_DEBUG_INFO_COLLECTION" (minus the quotes)
+
+@subsection table Statistics Table
+
+While you can call DisplayAllocations to see the current number of allocations and their sizes, you may want to get further
+information, such as the percentage of a certain object type.  To view the table, call DisplayStatTable().  Note that it 
+only makes sense to call this function if you haven't defined DISABLE_DEBUG_INFO_COLLECTION, since type information will
+not be available.
+
+Example: memAnalyzer->DisplayStatTable();
+
 @subsection heap Heap Checking
 
 Heap corruption is a very serious problem.  If you are on a Windows system, you can call HeapCheck() to determine the state
@@ -74,6 +90,10 @@ Example: memAnalyzer->HeapCheck();
 
 #include "MemoryTracer.h"
 
+/** @def DISABLE_DEBUG_INFO_COLLECTION
+Define this constant to turn off filename, line number, and object type collection to avoid compile errors
+when using operator new.
+*/
 #ifndef DISABLE_DEBUG_INFO_COLLECTION
 
 /** @def DEBUG_NEW

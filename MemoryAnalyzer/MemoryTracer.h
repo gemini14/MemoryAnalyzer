@@ -1,4 +1,4 @@
-/** @file MemMngr.h
+/** @file MemoryTracer.h
 @brief Internal implementation -- do not include this file directly.  Please include MemoryAnalyzer.h instead.
 */
 
@@ -21,7 +21,9 @@ enum AllocationType
 	ALLOC_NEW_ARRAY		/**< Array memory allocation */
 };
 
-
+/** @class SourcePacket
+@brief Temporary container class for macro-acquired file and line information.
+*/
 class SourcePacket
 {
 private:
@@ -31,12 +33,17 @@ private:
 
 public:
 
+	/** @param file Source filename
+		@param line Line number
+	*/
 	SourcePacket(const char *file, int line) : file(file), line(line)
 	{}
 	~SourcePacket()
 	{}
 
+	//! Source file in which the allocation was made
 	const char *file;
+	//! Line number of the source file in which the allocation was made
 	int line;
 };
 
@@ -122,7 +129,6 @@ private:
 	size_t peakMemory;
 	long long currentBlocks;
 	long long peakBlocks;
-
 	const char *unknown;
 
 	std::ofstream dumpFile;
@@ -224,12 +230,7 @@ public:
 	/** Set to true to save all memory leaks and related information in a generated file, memleaks.log (default: false).
 	*/
 	bool dumpLeaksToFile;
-
-	/** @brief Singleton access
-	@return Reference to singleton object
-	*/
-	static MemoryTracer& Get();
-
+	
 	/** @brief Displays current memory allocations in the console according to criteria
 	@param displayNumberOfAllocsFirst Set to true to display the list according to the number of allocations
 	of a certain size (i.e., 10 allocs of size 2); otherwise, the list will be displayed according to
@@ -245,6 +246,11 @@ public:
 	and are indicated like so: Unknown type (size: 16 bytes).
 	*/
 	void DisplayStatTable();
+
+	/** @brief Singleton access
+	@return Reference to singleton object
+	*/
+	static MemoryTracer& Get();
 
 	/** @brief Retrieves the number of blocks allocated at present
 		@return Number of allocated blocks
@@ -273,21 +279,63 @@ public:
 	void HeapCheck();
 #endif
 
+	// These declarations make the new and delete operators friends to provide access to allocation and deallocation
+	// routines (they are private to prevent users from arbitrarily calling them).
+	
+	/** @brief Non-array operator new.  Exception version.
+		@param size Allocation size
+		@return Void pointer to newly allocated memory
+	*/
 	friend void* operator new(size_t size);
+	
+	/** @brief Non-array operator new.
+		@param size Allocation size
+		@return Void pointer to newly allocated memory
+	*/
 	friend void* operator new(size_t size, const std::nothrow_t&);
+	
+	/** @brief Non-array operator delete.  Exception version.
+		@param ptr Pointer to object to be deleted
+	*/
 	friend void operator delete(void *ptr);
+	
+	/** @brief Non-array operator delete
+		@param ptr Pointer to object to be deleted
+	*/
 	friend void operator delete(void *ptr, const std::nothrow_t&);
 
+
+	/** @brief Array operator new.  Exception version.
+		@param size Allocation size
+		@return Void pointer to newly allocated memory
+	*/
 	friend void* operator new[](size_t size);
+	
+	/** @brief Array operator new.
+		@param size Allocation size
+		@return Void pointer to newly allocated memory
+	*/
 	friend void* operator new[](size_t size, const std::nothrow_t&);
+	
+	/** @brief Array operator delete.  Exception version.
+		@param ptr Pointer to object to be deleted
+	*/
 	friend void operator delete[](void *ptr);
+	
+	/** @brief Array operator delete
+		@param ptr Pointer to object to be deleted
+	*/
 	friend void operator delete[](void *ptr, const std::nothrow_t&);
 	
 	template<typename T>
 	friend T* operator*(const SourcePacket& packet, T* p);
 };
 
-
+/** @brief Tags allocations with filenames, lines, and types
+	@param packet Container object containing filename and line.  This parameter is automatically filled in via a macro.
+	@param p Newly created object
+	@return Newly created object	
+*/
 template<typename T>
 T* operator*(const SourcePacket& packet, T* p)
 {
@@ -298,6 +346,7 @@ T* operator*(const SourcePacket& packet, T* p)
 		{
 			 type = typeid(*p).name();
 		}
+		// bad RTTI
 		catch(std::bad_typeid& e)
 		{
 			cout << e.what() << "\n";
@@ -305,9 +354,11 @@ T* operator*(const SourcePacket& packet, T* p)
 		}
 
 		MemoryTracer::Get().AddAllocationDetails(p, packet.file, packet.line, type, sizeof(*p));
+		
 		if(MemoryTracer::Get().showAllAllocs)
 		{
-			cout << "Allocation Information Trace >\n\tObject Type: " << type << "\n\tFile: " << packet.file << "\n\tLine: " << packet.line << "\n\n";
+			cout << "Allocation Information Trace >\n\tObject Type: " << type << "\n\tFile: " << packet.file 
+				<< "\n\tLine: " << packet.line << "\n\n";
 		}
 
 		size_t objectSize = MemoryTracer::Get().RetrieveAddrSize(p);
