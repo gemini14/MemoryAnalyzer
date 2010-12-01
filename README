@@ -8,9 +8,6 @@ Note that since it was written with portability in mind, it does not have all th
 Installation & Usage
 --------------------
 
-### Installation
-
 Installation is very simple--just copy the header and source files to your project directory and include "MemoryAnalyzer.h" at the very beginning of your program (before any other includes).
 
-### Usage
 Comprehensive usage help can be found in the Docs/html/ folder (start at index.htm).
