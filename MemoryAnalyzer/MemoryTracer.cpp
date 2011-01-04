@@ -2,7 +2,6 @@
 
 #include <exception>
 #include <iomanip>
-#include <iostream>
 
 #ifdef _WIN32
 #include <malloc.h>
@@ -13,7 +12,7 @@ using namespace std;
 
 MemoryTracer::MemoryTracer()
 	: head_new(nullptr), head_new_array(nullptr), showAllAllocs(false), showAllDeallocs(false),
-	peakMemory(0), currentMemory(0), unknown("Unknown"), dumpLeaksToFile(false), currentBlocks(0), 
+	peakMemory(0), currentMemory(0), unknown("Unknown"), dumpLeaksToFile(true), currentBlocks(0), 
 	peakBlocks(0), head_types(nullptr)
 {
 }

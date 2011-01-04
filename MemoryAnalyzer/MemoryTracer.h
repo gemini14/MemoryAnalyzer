@@ -8,6 +8,7 @@
 
 #include <assert.h>
 #include <fstream>
+#include <iostream>
 #include <stdlib.h>
 #include <typeinfo>
 
@@ -349,7 +350,7 @@ T* operator*(const SourcePacket& packet, T* p)
 		// bad RTTI
 		catch(std::bad_typeid& e)
 		{
-			cout << e.what() << "\n";
+			std::cout << e.what() << "\n";
 			return p;
 		}
 
@@ -357,7 +358,7 @@ T* operator*(const SourcePacket& packet, T* p)
 		
 		if(MemoryTracer::Get().showAllAllocs)
 		{
-			cout << "Allocation Information Trace >\n\tObject Type: " << type << "\n\tFile: " << packet.file 
+			std::cout << "Allocation Information Trace >\n\tObject Type: " << type << "\n\tFile: " << packet.file 
 				<< "\n\tLine: " << packet.line << "\n\n";
 		}
 
